@@ -1,0 +1,161 @@
+# Simulación de Planificación de Procesos SJF
+
+
+def sjf_scheduling(processes, nombre_escenario):
+    print(f"{'-' * 60}")
+    print(f"   RESULTADOS - {nombre_escenario}")
+    print(f"{'-' * 60}")
+
+    # Copiar lista para evitar modificar los datos originales
+    procesos = [p.copy() for p in processes]
+    for p in procesos:
+        p['completado'] = False
+        p['inicio'] = -1
+
+    n = len(procesos)
+    completados = 0
+    tiempo_actual = 0
+    tiempo_inactivo = 0
+    resultados = []
+
+    while completados < n:
+        # Procesos que ya llegaron
+        listos = [p for p in procesos if p['arrival_time'] <= tiempo_actual and not p['completado']]
+
+        if not listos:
+            tiempo_actual += 1
+            tiempo_inactivo += 1
+            continue
+
+        # Seleccionar proceso con menor burst_time
+        listos.sort(key=lambda x: x['burst_time'])
+        actual = listos[0]
+
+        # Si es la primera vez que se ejecuta, registramos inicio
+        if actual['inicio'] == -1:
+            actual['inicio'] = tiempo_actual
+
+        # Ejecutar proceso completo (no expropiativo)
+        inicio = tiempo_actual
+        fin = inicio + actual['burst_time']
+
+        # Calcular métricas individuales
+        retorno = fin - actual['arrival_time']
+        espera = inicio - actual['arrival_time']
+        respuesta = actual['inicio'] - actual['arrival_time']
+
+        resultados.append({
+            'ID': actual['ID'],
+            'Llegada': actual['arrival_time'],
+            'Ráfaga': actual['burst_time'],
+            'Inicio': inicio,
+            'Fin': fin,
+            'Espera': espera,
+            'Retorno': retorno,
+            'Respuesta': respuesta
+        })
+
+        # Marcar proceso como completado
+        actual['completado'] = True
+        completados += 1
+        tiempo_actual = fin
+
+    # Cálculo de métricas promedio
+    prom_espera = sum(p['Espera'] for p in resultados) / n
+    prom_retorno = sum(p['Retorno'] for p in resultados) / n
+    prom_respuesta = sum(p['Respuesta'] for p in resultados) / n
+    uso_cpu = ((tiempo_actual - tiempo_inactivo) / tiempo_actual * 100) if tiempo_actual > 0 else 0
+    throughput = n / tiempo_actual if tiempo_actual > 0 else 0
+
+    # Mostrar resultados
+    print("\nDETALLE DE PROCESOS:")
+    print("ID | Llegada | Ráfaga | Inicio | Fin | Espera | Retorno | Respuesta")
+    print("-" * 75)
+    for r in resultados:
+        print(f"{r['ID']:>2} | {r['Llegada']:>7} | {r['Ráfaga']:>6} | {r['Inicio']:>6} | {r['Fin']:>3} | {r['Espera']:>6} | {r['Retorno']:>7} | {r['Respuesta']:>9}")
+
+    print(f"\n--- MÉTRICAS DE RENDIMIENTO ---")
+    print(f"Tiempo de espera promedio   : {prom_espera:.2f}")
+    print(f"Tiempo de retorno promedio  : {prom_retorno:.2f}")
+    print(f"Tiempo de respuesta promedio: {prom_respuesta:.2f}")
+    print(f"Utilización de CPU          : {uso_cpu:.2f}%")
+    print(f"Throughput                  : {throughput:.2f} procesos/unidad de tiempo")
+    print("-" * 60)
+
+    return {
+        'avg_waiting': prom_espera,
+        'avg_turnaround': prom_retorno,
+        'avg_response': prom_respuesta,
+        'cpu_utilization': uso_cpu,
+        'throughput': throughput
+    }
+
+
+
+# Escenarios de simulación
+
+
+escenario_A = [  # Carga intensa inicial
+    {'ID': 'P1', 'arrival_time': 0, 'burst_time': 8},
+    {'ID': 'P2', 'arrival_time': 0, 'burst_time': 4},
+    {'ID': 'P3', 'arrival_time': 0, 'burst_time': 9},
+    {'ID': 'P4', 'arrival_time': 0, 'burst_time': 5},
+]
+
+escenario_B = [  # Llegadas escalonadas
+    {'ID': 'P1', 'arrival_time': 0, 'burst_time': 6},
+    {'ID': 'P2', 'arrival_time': 2, 'burst_time': 8},
+    {'ID': 'P3', 'arrival_time': 4, 'burst_time': 7},
+    {'ID': 'P4', 'arrival_time': 6, 'burst_time': 3},
+]
+
+escenario_C = [  # Procesos homogéneos
+    {'ID': 'P1', 'arrival_time': 0, 'burst_time': 5},
+    {'ID': 'P2', 'arrival_time': 3, 'burst_time': 5},
+    {'ID': 'P3', 'arrival_time': 6, 'burst_time': 5},
+    {'ID': 'P4', 'arrival_time': 9, 'burst_time': 5},
+]
+
+
+# Ejecución principal
+
+
+if _name_ == "_main_":
+    print("SIMULACIÓN DE PLANIFICACIÓN DE PROCESOS SJF (NO EXPROPIATIVO)")
+    print("-" * 60)
+
+    resultados = {
+        'A': sjf_scheduling(escenario_A, "Escenario A - Carga Intensa Inicial"),
+        'B': sjf_scheduling(escenario_B, "Escenario B - Llegadas Escalonadas"),
+        'C': sjf_scheduling(escenario_C, "Escenario C - Procesos Homogéneos")
+    }
+
+    # Comparativa final
+    print("\n" + "-" * 70)
+    print("ANÁLISIS COMPARATIVO ENTRE ESCENARIOS")
+    print("-" * 70)
+    print(f"{'Escenario':<15} {'Espera':<10} {'Retorno':<10} {'Respuesta':<12} {'CPU %':<10} {'Throughput':<12}")
+    print("-" * 70)
+    for esc, m in resultados.items():
+        print(f"{esc:<15} {m['avg_waiting']:<10.2f} {m['avg_turnaround']:<10.2f} {m['avg_response']:<12.2f} {m['cpu_utilization']:<10.2f} {m['throughput']:<12.2f}")
+
+    # Determinar el escenario más productivo
+    mejor_cpu = max(resultados, key=lambda e: resultados[e]['cpu_utilization'])
+    menor_espera = min(resultados, key=lambda e: resultados[e]['avg_waiting'])
+
+    print("\n" + "-" * 70)
+    print("CONCLUSIÓN FINAL SOBRE PRODUCTIVIDAD")
+    print("-" * 70)
+    print(f"El escenario con mayor utilización de CPU fue: Escenario {mejor_cpu}")
+    print(f" Utilización: {resultados[mejor_cpu]['cpu_utilization']:.2f}%")
+    print(f"El escenario con menor tiempo de espera promedio fue: Escenario {menor_espera}")
+    print(f"Tiempo de espera: {resultados[menor_espera]['avg_waiting']:.2f} unidades de tiempo")
+
+    # Comentario final sobre productividad
+    if mejor_cpu == menor_espera:
+        print(f"\n En general, el Escenario {mejor_cpu} fue el más productivo, "
+              f"ya que combinó alta utilización de CPU con baja espera promedio.")
+    else:
+        print(f"\n Aunque el Escenario {mejor_cpu} tuvo mayor uso de CPU, "
+              f"el Escenario {menor_espera} ofreció menor tiempo de espera promedio. "
+              f"Esto demuestra cómo distintas condiciones de llegada afectan la eficiencia del algoritmo SJF.")
